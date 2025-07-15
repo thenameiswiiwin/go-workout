@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS workout_entries (
     id BIGSERIAL PRIMARY KEY,
-    workout_id BIGINT REFERENCES workouts(id) ON DELETE CASCADE,
+    workout_id BIGINT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
     excercise_name VARCHAR(255) NOT NULL,
     sets INTEGER NOT NULL,
     reps INTEGER,
