@@ -1,6 +1,12 @@
 package main
 
-import "github.com/thenameiswiiwin/go-workout/internal/app"
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/thenameiswiiwin/go-workout/internal/app"
+)
 
 func main() {
 	app, err := app.NewApplication()
@@ -9,4 +15,21 @@ func main() {
 	}
 
 	app.Logger.Println("Application started successfully")
+
+	http.HandleFunc("/health", healthCheck)
+	server := &http.Server{
+		Addr:         ":8080",
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	}
+
+	err = server.ListenAndServe()
+	if err != nil {
+		app.Logger.Fatal(err)
+	}
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Status: OK")
 }
