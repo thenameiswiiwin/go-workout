@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thenameiswiiwin/go-workout/internal/app"
+	"github.com/thenameiswiiwin/go-workout/internal/routes"
 )
 
 func main() {
@@ -19,9 +20,10 @@ func main() {
 		panic(err)
 	}
 
-	http.HandleFunc("/health", healthCheck)
+	r := routes.SetupRoutes(app)
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      r,
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -33,8 +35,4 @@ func main() {
 	if err != nil {
 		app.Logger.Fatal(err)
 	}
-}
-
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Status: OK")
 }
