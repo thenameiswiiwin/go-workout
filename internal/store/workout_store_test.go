@@ -57,7 +57,7 @@ func TestCreateWorkout(t *testing.T) {
 					},
 				},
 			},
-			wantErr: false,
+			wantErr: false, // True if an error is expected
 		},
 		{
 			name: "workout with invalid entry",
@@ -85,7 +85,7 @@ func TestCreateWorkout(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantErr: true, // False if an error is expected
 		},
 	}
 
@@ -111,9 +111,7 @@ func TestCreateWorkout(t *testing.T) {
 
 			for i := range retrieved.Entries {
 				assert.Equal(t, tt.workout.Entries[i].ExerciseName, retrieved.Entries[i].ExerciseName)
-				assert.Equal(t, tt.workout.Entries[i].Sets, retrieved.Entries[i].Sets)
-				assert.Equal(t, tt.workout.Entries[i].Reps, retrieved.Entries[i].Reps)
-				assert.Equal(t, tt.workout.Entries[i].DurationSeconds, retrieved.Entries[i].DurationSeconds)
+				assert.Equal(t, tt.workout.Entries[i].Sets, retrieved.Entries[i].Sets) assert.Equal(t, tt.workout.Entries[i].Reps, retrieved.Entries[i].Reps) assert.Equal(t, tt.workout.Entries[i].DurationSeconds, retrieved.Entries[i].DurationSeconds)
 				assert.Equal(t, tt.workout.Entries[i].Weight, retrieved.Entries[i].Weight)
 				assert.Equal(t, tt.workout.Entries[i].Notes, retrieved.Entries[i].Notes)
 				assert.Equal(t, tt.workout.Entries[i].OrderIndex, retrieved.Entries[i].OrderIndex)
