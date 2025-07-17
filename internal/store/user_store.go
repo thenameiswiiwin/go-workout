@@ -2,12 +2,41 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type password struct {
 	plainText *string
 	hash      []byte
+}
+
+func (p *password) Set(plaintextPassword string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
+	if err != nil {
+		return err
+	}
+
+	p.plainText = &plaintextPassword
+	p.hash = hash
+
+	return nil
+}
+
+func (p *password) Matches(plaintextPassword string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintextPassword))
+	if err != nil {
+		switch {
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			return false, nil
+		default:
+			return false, err // internal server error
+		}
+	}
+
+	return true, nil
 }
 
 type User struct {
@@ -38,7 +67,7 @@ type UserStore interface {
 
 func (s *PostgresUserStore) CreateUser(user *User) error {
 	query := `
-	INSERT INTRO users (username, email, password_hash, bio)
+	INSERT INTO users (username, email, password_hash, bio)
 	VALUES ($1, $2, $3, $4)
 	RETURNING id, created_at, updated_at
 	`

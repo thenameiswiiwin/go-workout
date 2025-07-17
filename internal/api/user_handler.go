@@ -23,6 +23,11 @@ type UserHandler struct {
 	logger    *log.Logger
 }
 
+var (
+	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,50}$`)
+	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+)
+
 func NewUserHandler(userStore store.UserStore, logger *log.Logger) *UserHandler {
 	return &UserHandler{
 		userStore: userStore,
@@ -39,7 +44,6 @@ func (h *UserHandler) validateRegisterRequest(req *registerUserRequest) error {
 		return errors.New("username must be less than 50 characters")
 	}
 
-	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9_-]{3,50}$`)
 	if !usernameRegex.MatchString(req.Username) {
 		return errors.New("username can only contain letters, numbers, underscores, and hyphens, and must be between 3 and 50 characters")
 	}
@@ -48,17 +52,12 @@ func (h *UserHandler) validateRegisterRequest(req *registerUserRequest) error {
 		return errors.New("email is required")
 	}
 
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(req.Email) {
 		return errors.New("invalid email format")
 	}
 
 	if req.Password == "" {
 		return errors.New("password is required")
-	}
-
-	if len(req.Password) < 8 {
-		return errors.New("password must be at least 8 characters long")
 	}
 
 	if err := validatePassword(req.Password); err != nil {
@@ -77,14 +76,14 @@ func (h *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request)
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		h.logger.Printf("failed to decode request body: %v", err)
+		h.logger.Printf("ERROR: decoding request body: %v", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request body"})
 		return
 	}
 
 	err = h.validateRegisterRequest(&req)
 	if err != nil {
-		h.logger.Printf("validation error: %v", err)
+		h.logger.Printf("ERROR: validating register request: %v", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
 		return
 	}
@@ -97,6 +96,22 @@ func (h *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request)
 	if req.Bio != "" {
 		user.Bio = req.Bio
 	}
+
+	err = user.PasswordHash.Set(req.Password)
+	if err != nil {
+		h.logger.Printf("ERROR: setting password hash: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "internal server error"})
+		return
+	}
+
+	err = h.userStore.CreateUser(user)
+	if err != nil {
+		h.logger.Printf("ERROR: creating user: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "internal server error"})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user})
 }
 
 func validatePassword(password string) error {
