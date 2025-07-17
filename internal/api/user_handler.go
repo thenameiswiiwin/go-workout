@@ -1,11 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"regexp"
 
 	"github.com/thenameiswiiwin/go-workout/internal/store"
+	"github.com/thenameiswiiwin/go-workout/internal/utils"
 )
 
 type registerUserRequest struct {
@@ -67,6 +70,33 @@ func (h *UserHandler) validateRegisterRequest(req *registerUserRequest) error {
 	}
 
 	return nil
+}
+
+func (h *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
+	var req registerUserRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		h.logger.Printf("failed to decode request body: %v", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request body"})
+		return
+	}
+
+	err = h.validateRegisterRequest(&req)
+	if err != nil {
+		h.logger.Printf("validation error: %v", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
+		return
+	}
+
+	user := &store.User{
+		Username: req.Username,
+		Email:    req.Email,
+	}
+
+	if req.Bio != "" {
+		user.Bio = req.Bio
+	}
 }
 
 func validatePassword(password string) error {
