@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -57,6 +59,66 @@ func TestCreateWorkout(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "workout with invalid entry",
+			workout: &Workout{
+				Title:           "Full Body",
+				Description:     "A full body workout",
+				DurationMinutes: 90,
+				CaloriesBurned:  700,
+				Entries: []WorkoutEntry{
+					{
+						ExerciseName: "Pull Ups",
+						Sets:         3,
+						Reps:         IntPtr(60),
+						Notes:        "Too many reps",
+						OrderIndex:   1,
+					},
+					{
+						ExerciseName:    "Squats",
+						Sets:            4,
+						Reps:            IntPtr(12),
+						DurationSeconds: IntPtr(300),
+						Weight:          FloatPtr(235.0),
+						Notes:           "Felt good",
+						OrderIndex:      2,
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			createdWorkout, err := store.CreateWorkout(tt.workout)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.workout.Title, createdWorkout.Title)
+			assert.Equal(t, tt.workout.Description, createdWorkout.Description)
+			assert.Equal(t, tt.workout.DurationMinutes, createdWorkout.DurationMinutes)
+			assert.Equal(t, tt.workout.CaloriesBurned, createdWorkout.CaloriesBurned)
+
+			retrieved, err := store.GetWorkoutByID(int64(createdWorkout.ID))
+			require.NoError(t, err)
+
+			assert.Equal(t, createdWorkout.ID, retrieved.ID)
+			assert.Equal(t, len(tt.workout.Entries), len(retrieved.Entries))
+
+			for i := range retrieved.Entries {
+				assert.Equal(t, tt.workout.Entries[i].ExerciseName, retrieved.Entries[i].ExerciseName)
+				assert.Equal(t, tt.workout.Entries[i].Sets, retrieved.Entries[i].Sets)
+				assert.Equal(t, tt.workout.Entries[i].Reps, retrieved.Entries[i].Reps)
+				assert.Equal(t, tt.workout.Entries[i].DurationSeconds, retrieved.Entries[i].DurationSeconds)
+				assert.Equal(t, tt.workout.Entries[i].Weight, retrieved.Entries[i].Weight)
+				assert.Equal(t, tt.workout.Entries[i].Notes, retrieved.Entries[i].Notes)
+				assert.Equal(t, tt.workout.Entries[i].OrderIndex, retrieved.Entries[i].OrderIndex)
+			}
+		})
 	}
 }
 
