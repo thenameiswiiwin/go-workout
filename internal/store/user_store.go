@@ -1,6 +1,7 @@
 package store
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"time"
@@ -49,6 +50,12 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+var Anonymoususer = &User{}
+
+func (u *User) IsAnonymous() bool {
+	return u == Anonymoususer
+}
+
 type PostgresUserStore struct {
 	db *sql.DB
 }
@@ -63,6 +70,7 @@ type UserStore interface {
 	CreateUser(user *User) error
 	GetUserByUsername(username string) (*User, error)
 	UpdateUser(user *User) error
+	GetUserToken(scope, plaintextPassword string) (*User, error)
 }
 
 func (s *PostgresUserStore) CreateUser(user *User) error {
@@ -127,4 +135,30 @@ func (s *PostgresUserStore) UpdateUser(user *User) error {
 	}
 
 	return nil
+}
+
+func (s *PostgresUserStore) GetUserToken(scope, plaintextPassword string) (*User, error) {
+	tokenHash := sha256.Sum256([]byte(plaintextPassword))
+
+	query := `
+	SELECT u.id, u.username, u.email, u.password_hash, u.bio, u.created_at, u.updated_at
+	FROM users u
+	INNER JOIN tokens t ON t.user_id = u.id
+	WHERE t.hash = $1 AND t.scope = $2 AND t.expiry > $3
+	`
+
+	user := &User{
+		PasswordHash: password{},
+	}
+
+	err := s.db.QueryRow(query, tokenHash[:], scope, time.Now()).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash.hash, &user.Bio, &user.CreatedAt, &user.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil // Token not found or expired
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
